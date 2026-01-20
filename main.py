@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 # ---------------------------
 DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
 USAGE_FILE = os.environ.get("USAGE_FILE", "usage.json")
+PREV_FILE = os.environ.get("PREV_FILE", "usage_prev.json")
 
 # Pricing rates
 CPU_PRICE_PER_SEC = 0.00000772
@@ -16,7 +17,7 @@ VOLUME_PRICE_PER_GB_SEC = 0.00000006
 NETWORK_PRICE_PER_GB = 0.05
 
 # ---------------------------
-# Load usage JSON
+# Load current usage JSON
 # ---------------------------
 try:
     with open(USAGE_FILE, "r") as f:
@@ -24,30 +25,43 @@ try:
 except FileNotFoundError:
     print(f"Error: Usage file '{USAGE_FILE}' not found.")
     exit(1)
-except json.JSONDecodeError:
-    print(f"Error: Usage file '{USAGE_FILE}' is not valid JSON.")
-    exit(1)
 
 # ---------------------------
-# Extract usage values
+# Load previous usage snapshot
 # ---------------------------
-cpu_seconds = usage.get("cpuSeconds", 0)
-memory_mb_seconds = usage.get("memoryMBSeconds", 0)
-network_mb = usage.get("networkEgressMB", 0)
-volume_gb_seconds = usage.get("volumeGBSeconds", 0)
-
-memory_gb_seconds = memory_mb_seconds / 1024
-network_gb = network_mb / 1024
+if os.path.exists(PREV_FILE):
+    with open(PREV_FILE, "r") as f:
+        prev_usage = json.load(f)
+else:
+    # If no previous file, assume all usage is new
+    prev_usage = {
+        "cpuSeconds": 0,
+        "memoryMBSeconds": 0,
+        "networkEgressMB": 0,
+        "volumeGBSeconds": 0
+    }
 
 # ---------------------------
-# Calculate costs
+# Calculate deltas (daily usage)
 # ---------------------------
-cpu_cost = cpu_seconds * CPU_PRICE_PER_SEC
-memory_cost = memory_gb_seconds * MEMORY_PRICE_PER_GB_SEC
-volume_cost = volume_gb_seconds * VOLUME_PRICE_PER_GB_SEC
-network_cost = network_gb * NETWORK_PRICE_PER_GB
+delta_cpu = usage.get("cpuSeconds", 0) - prev_usage.get("cpuSeconds", 0)
+delta_memory_mb = usage.get("memoryMBSeconds", 0) - prev_usage.get("memoryMBSeconds", 0)
+delta_network_mb = usage.get("networkEgressMB", 0) - prev_usage.get("networkEgressMB", 0)
+delta_volume_gb = usage.get("volumeGBSeconds", 0) - prev_usage.get("volumeGBSeconds", 0)
 
-estimated_cost = cpu_cost + memory_cost + volume_cost + network_cost
+# Convert units
+delta_memory_gb = delta_memory_mb / 1024
+delta_network_gb = delta_network_mb / 1024
+
+# ---------------------------
+# Calculate estimated cost
+# ---------------------------
+cpu_cost = delta_cpu * CPU_PRICE_PER_SEC
+memory_cost = delta_memory_gb * MEMORY_PRICE_PER_GB_SEC
+volume_cost = delta_volume_gb * VOLUME_PRICE_PER_GB_SEC
+network_cost = delta_network_gb * NETWORK_PRICE_PER_GB
+
+total_cost = cpu_cost + memory_cost + volume_cost + network_cost
 
 # ---------------------------
 # Timestamp
@@ -58,14 +72,14 @@ timestamp = datetime.now(timezone.utc).isoformat()
 # Build Discord Embed
 # ---------------------------
 embed = {
-    "title": "📊 Railway Usage & Estimated Cost",
+    "title": "📊 Railway Daily Usage & Estimated Cost",
     "color": 0x1abc9c,
     "fields": [
-        {"name": "💻 CPU", "value": f"{cpu_seconds} sec → ${cpu_cost:.4f}", "inline": True},
-        {"name": "🧠 Memory", "value": f"{memory_mb_seconds} MB-sec → ${memory_cost:.4f}", "inline": True},
-        {"name": "📦 Volumes", "value": f"{volume_gb_seconds} GB-sec → ${volume_cost:.4f}", "inline": True},
-        {"name": "🌐 Network", "value": f"{network_gb:.2f} GB → ${network_cost:.4f}", "inline": True},
-        {"name": "💰 Total Estimated Cost", "value": f"${estimated_cost:.4f}", "inline": False}
+        {"name": "💻 CPU", "value": f"{delta_cpu} sec → ${cpu_cost:.4f}", "inline": True},
+        {"name": "🧠 Memory", "value": f"{delta_memory_mb} MB-sec → ${memory_cost:.4f}", "inline": True},
+        {"name": "📦 Volumes", "value": f"{delta_volume_gb} GB-sec → ${volume_cost:.4f}", "inline": True},
+        {"name": "🌐 Network", "value": f"{delta_network_gb:.2f} GB → ${network_cost:.4f}", "inline": True},
+        {"name": "💰 Total Estimated Cost", "value": f"${total_cost:.4f}", "inline": False}
     ],
     "footer": {"text": f"Snapshot taken at {timestamp} UTC"}
 }
@@ -80,3 +94,9 @@ try:
 except requests.exceptions.RequestException as e:
     print("Failed to send Discord embed:", e)
     exit(1)
+
+# ---------------------------
+# Update previous snapshot
+# ---------------------------
+with open(PREV_FILE, "w") as f:
+    json.dump(usage, f)
