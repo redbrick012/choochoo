@@ -29,4 +29,7 @@ message = (
 try:
     res = requests.post(DISCORD_WEBHOOK, json={"content": message})
     res.raise_for_status()
-    print("Mess
+    print("Message sent to Discord successfully!")
+except requests.exceptions.RequestException as e:
+    print("Failed to send Discord message:", e)
+    exit(1)
