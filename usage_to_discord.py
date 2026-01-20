@@ -8,17 +8,17 @@ DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 query = """
 query ProjectUsage($projectId: String!) {
   project(id: $projectId) {
-    usage {
+    metrics {
       cpuSeconds
-      memoryMBSeconds
-      networkEgressMB
+      memorySeconds
+      networkEgressBytes
     }
   }
 }
 """
 
 headers = {
-    "Authorization": f"Bearer {RAILWAY_TOKEN}",
+    "Authorization": f"railwayToken {RAILWAY_TOKEN}",
     "Content-Type": "application/json",
 }
 
@@ -28,15 +28,17 @@ res = requests.post(
     headers=headers,
 )
 
-res.raise_for_status()
+if res.status_code != 200:
+    print(res.text)
+    res.raise_for_status()
 
-usage = res.json()["data"]["project"]["usage"]
+metrics = res.json()["data"]["project"]["metrics"]
 
 message = (
     f"📊 **Railway Usage Update**\n"
-    f"CPU: {usage['cpuSeconds'] / 3600:.2f} hours\n"
-    f"Memory: {usage['memoryMBSeconds'] / 3600:.2f} MB-hours\n"
-    f"Network: {usage['networkEgressMB']:.2f} MB"
+    f"CPU: {metrics['cpuSeconds'] / 3600:.2f} hours\n"
+    f"Memory: {metrics['memorySeconds'] / 3600:.2f} MB-hours\n"
+    f"Network: {metrics['networkEgressBytes'] / (1024*1024):.2f} MB"
 )
 
 requests.post(DISCORD_WEBHOOK, json={"content": message})
