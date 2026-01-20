@@ -1,10 +1,9 @@
-query ProjectUsage($projectId: ID!) {
+query ProjectUsage($projectId: String!) {
   project(id: $projectId) {
     usage {
       cpuSeconds
-      memoryMBSeconds
-      networkEgressMB
-      diskGBSeconds
+      memorySeconds
+      networkEgressBytes
     }
   }
 }
