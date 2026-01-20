@@ -1,5 +1,10 @@
-[deploy]
+[project]
+name = "railway-usage-bot"
+
+[service]
+name = "discord-bot"
 startCommand = "python usage_to_discord.py"
 
-[cron]
+[cron.daily]
 schedule = "0 9 * * *"
+command = "python usage_to_discord.py"
