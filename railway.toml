@@ -1,0 +1,5 @@
+[deploy]
+startCommand = "python usage_to_discord.py"
+
+[cron]
+schedule = "0 9 * * *"
