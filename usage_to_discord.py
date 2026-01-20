@@ -6,7 +6,7 @@ PROJECT_ID = os.environ["PROJECT_ID"]
 DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 
 query = """
-query ProjectUsage($projectId: String!) {
+query ProjectUsage($projectId: ID!) {
   project(id: $projectId) {
     metrics {
       cpuSeconds
