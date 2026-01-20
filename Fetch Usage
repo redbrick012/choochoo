@@ -1,0 +1,39 @@
+import requests
+
+RAILWAY_TOKEN = "YOUR_RAILWAY_TOKEN"
+PROJECT_ID = "YOUR_PROJECT_ID"
+DISCORD_WEBHOOK = "YOUR_DISCORD_WEBHOOK_URL"
+
+query = """
+query ProjectUsage($projectId: String!) {
+  project(id: $projectId) {
+    usage {
+      cpuSeconds
+      memoryMBSeconds
+      networkEgressMB
+    }
+  }
+}
+"""
+
+headers = {
+    "Authorization": f"Bearer {RAILWAY_TOKEN}",
+    "Content-Type": "application/json",
+}
+
+res = requests.post(
+    "https://backboard.railway.app/graphql/v2",
+    json={"query": query, "variables": {"projectId": PROJECT_ID}},
+    headers=headers
+)
+
+usage = res.json()["data"]["project"]["usage"]
+
+message = (
+    f"📊 **Railway Usage Update**\n"
+    f"CPU: {usage['cpuSeconds'] / 3600:.2f} hours\n"
+    f"Memory: {usage['memoryMBSeconds'] / 3600:.2f} MB-hours\n"
+    f"Network: {usage['networkEgressMB']:.2f} MB"
+)
+
+requests.post(DISCORD_WEBHOOK, json={"content": message})
