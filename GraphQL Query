@@ -1,4 +1,4 @@
-query ProjectUsage($projectId: String!) {
+query ProjectUsage($projectId: ID!) {
   project(id: $projectId) {
     usage {
       cpuSeconds
