@@ -28,7 +28,11 @@ res = requests.post(
     headers=headers,
 )
 
-res.raise_for_status()
+# DEBUG: show full GraphQL error
+print("STATUS:", res.status_code)
+print("RESPONSE:", res.text)
+exit(0)
+
 
 usage = res.json()["data"]["project"]["usage"]
 
