@@ -1,0 +1,6 @@
+{
+  "cpuSeconds": 12345,
+  "memoryMBSeconds": 67890,
+  "networkEgressMB": 1024,
+  "estimatedCost": 4.57
+}
