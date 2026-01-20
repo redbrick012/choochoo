@@ -8,7 +8,7 @@ DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 query = """
 query ProjectUsage($projectId: String!) {
   project(id: $projectId) {
-    metrics {
+    usage {
       cpuSeconds
       memorySeconds
       networkEgressBytes
@@ -28,21 +28,15 @@ res = requests.post(
     headers=headers,
 )
 
-# DEBUG — print the real response
-print("STATUS:", res.status_code)
-print("RESPONSE:", res.text)
-exit(0)
-
-
 res.raise_for_status()
 
-metrics = res.json()["data"]["project"]["metrics"]
+usage = res.json()["data"]["project"]["usage"]
 
 message = (
     f"📊 **Railway Usage Update**\n"
-    f"CPU: {metrics['cpuSeconds'] / 3600:.2f} hours\n"
-    f"Memory: {metrics['memorySeconds'] / 3600:.2f} MB-hours\n"
-    f"Network: {metrics['networkEgressBytes'] / (1024*1024):.2f} MB"
+    f"CPU: {usage['cpuSeconds'] / 3600:.2f} hours\n"
+    f"Memory: {usage['memorySeconds'] / 3600:.2f} MB-hours\n"
+    f"Network: {usage['networkEgressBytes'] / (1024*1024):.2f} MB"
 )
 
 requests.post(DISCORD_WEBHOOK, json={"content": message})
