@@ -3,22 +3,18 @@ import os
 
 RAILWAY_TOKEN = os.environ["RAILWAY_TOKEN"]
 PROJECT_ID = os.environ["PROJECT_ID"]
-DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 
 query = """
-query ProjectUsage($projectId: ID!) {
+query Test($projectId: ID!) {
   project(id: $projectId) {
-    metrics {
-      cpuSeconds
-      memorySeconds
-      networkEgressBytes
-    }
+    id
+    name
   }
 }
 """
 
 headers = {
-    "Authorization": f"railwayToken {RAILWAY_TOKEN}",
+    "Authorization": f"Bearer {RAILWAY_TOKEN}",
     "Content-Type": "application/json",
 }
 
@@ -28,17 +24,6 @@ res = requests.post(
     headers=headers,
 )
 
-if res.status_code != 200:
-    print(res.text)
-    res.raise_for_status()
-
-metrics = res.json()["data"]["project"]["metrics"]
-
-message = (
-    f"📊 **Railway Usage Update**\n"
-    f"CPU: {metrics['cpuSeconds'] / 3600:.2f} hours\n"
-    f"Memory: {metrics['memorySeconds'] / 3600:.2f} MB-hours\n"
-    f"Network: {metrics['networkEgressBytes'] / (1024*1024):.2f} MB"
-)
-
-requests.post(DISCORD_WEBHOOK, json={"content": message})
+print("STATUS:", res.status_code)
+print("RESPONSE:", res.text)
+exit(0)
