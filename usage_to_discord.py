@@ -28,6 +28,12 @@ res = requests.post(
     headers=headers,
 )
 
+# DEBUG — print the real response
+print("STATUS:", res.status_code)
+print("RESPONSE:", res.text)
+exit(0)
+
+
 res.raise_for_status()
 
 metrics = res.json()["data"]["project"]["metrics"]
