@@ -1,33 +1,41 @@
 import os
-import subprocess
 import json
 import requests
 
-RAILWAY_TOKEN = os.environ["RAILWAY_TOKEN"]
-PROJECT_ID = os.environ["PROJECT_ID"]
-DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
+# Discord webhook
+DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
 
-# Install Railway CLI
-subprocess.run(
-    ["curl", "-fsSL", "https://raw.githubusercontent.com/railwayapp/cli/master/install.sh", "|", "sh"],
-    shell=True,
-    check=True
-)
+# Path to the usage JSON file exported from Railway
+USAGE_FILE = os.environ.get("USAGE_FILE", "usage.json")
 
-# Fetch usage
-result = subprocess.run(
-    ["railway", "usage", "--project", PROJECT_ID, "--json"],
-    capture_output=True,
-    text=True,
-    check=True
-)
-usage = json.loads(result.stdout)
+# Load usage data
+try:
+    with open(USAGE_FILE, "r") as f:
+        usage = json.load(f)
+except FileNotFoundError:
+    print(f"Error: Usage file '{USAGE_FILE}' not found.")
+    exit(1)
+except json.JSONDecodeError:
+    print(f"Error: Usage file '{USAGE_FILE}' is not valid JSON.")
+    exit(1)
+
+# Prepare message
+cpu_hours = usage.get("cpuSeconds", 0) / 3600
+memory_hours = usage.get("memoryMBSeconds", 0) / 3600
+network_mb = usage.get("networkEgressMB", 0)
 
 message = (
     f"📊 **Railway Usage Update**\n"
-    f"CPU: {usage['cpuSeconds'] / 3600:.2f} hours\n"
-    f"Memory: {usage['memoryMBSeconds'] / 3600:.2f} MB-hours\n"
-    f"Network: {usage['networkEgressMB']:.2f} MB"
+    f"CPU: {cpu_hours:.2f} hours\n"
+    f"Memory: {memory_hours:.2f} MB-hours\n"
+    f"Network: {network_mb:.2f} MB"
 )
 
-requests.post(DISCORD_WEBHOOK, json={"content": message})
+# Send message to Discord
+try:
+    res = requests.post(DISCORD_WEBHOOK, json={"content": message})
+    res.raise_for_status()
+    print("Message sent to Discord successfully!")
+except requests.exceptions.RequestException as e:
+    print("Failed to send Discord message:", e)
+    exit(1)
