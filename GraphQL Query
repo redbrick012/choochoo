@@ -1,0 +1,10 @@
+query ProjectUsage($projectId: String!) {
+  project(id: $projectId) {
+    usage {
+      cpuSeconds
+      memoryMBSeconds
+      networkEgressMB
+      diskGBSeconds
+    }
+  }
+}
