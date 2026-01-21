@@ -26,4 +26,4 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
-          python usage_to_discord.py
+          python main.py
