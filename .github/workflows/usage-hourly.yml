@@ -1,0 +1,29 @@
+name: Railway Hourly Usage
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # every hour, on the hour
+  workflow_dispatch:
+
+jobs:
+  usage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+
+      - name: Run usage script
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          python usage_to_discord.py
