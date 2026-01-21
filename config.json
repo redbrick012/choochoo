@@ -1,0 +1,6 @@
+{
+  "cpu_vcpus": 0.5,
+  "memory_gb": 0.128,
+  "volume_gb": 1,
+  "network_gb_used": 0
+}
