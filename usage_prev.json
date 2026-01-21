@@ -1,1 +1,6 @@
-
+{
+  "cpuSeconds": 0,
+  "memoryMBSeconds": 0,
+  "networkEgressMB": 0,
+  "volumeGBSeconds": 0
+}
