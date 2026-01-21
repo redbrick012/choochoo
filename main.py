@@ -65,10 +65,16 @@ delta_total = cpu_cost + mem_cost + vol_cost + net_cost
 # ===========================
 # Monthly totals
 # ===========================
-if os.path.exists(MONTHLY_FILE):
-    monthly = json.load(open(MONTHLY_FILE))
-else:
-    monthly = {}
+def safe_load_json(path, default):
+    if not os.path.exists(path):
+        return default
+    try:
+        with open(path, "r") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return default
+
+monthly = safe_load_json(MONTHLY_FILE, {})
 
 if month_key not in monthly:
     monthly[month_key] = 0.0
