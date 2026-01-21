@@ -1,6 +1,6 @@
-{
-  "cpuSeconds": 0,
-  "memoryMBSeconds": 0,
-  "networkEgressMB": 0,
-  "volumeGBSeconds": 0
-}
+prev = safe_load_json(PREV_FILE, {
+    "cpuSeconds": 0,
+    "memoryMBSeconds": 0,
+    "networkEgressMB": 0,
+    "volumeGBSeconds": 0
+})
