@@ -3,126 +3,153 @@ import json
 import requests
 from datetime import datetime, timezone
 
-# ===========================
-# Config
-# ===========================
+# =========================
+# CONFIG
+# =========================
 DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
+USAGE_FILE = os.environ.get("USAGE_FILE", "usage.json")
+PREV_FILE = os.environ.get("PREV_FILE", "usage_prev.json")
+STATE_FILE = os.environ.get("STATE_FILE", "discord_state.json")
 
-USAGE_FILE = "usage.json"
-PREV_FILE = "usage_prev.json"
-MONTHLY_FILE = "monthly_totals.json"
-MESSAGE_FILE = "message_id.txt"
-
-# Railway pricing
+# =========================
+# RAILWAY PRICING (USD)
+# =========================
 CPU_PRICE_PER_SEC = 0.00000772
 MEMORY_PRICE_PER_GB_SEC = 0.00000386
 VOLUME_PRICE_PER_GB_SEC = 0.00000006
 NETWORK_PRICE_PER_GB = 0.05
 
-now = datetime.now(timezone.utc)
-month_key = now.strftime("%Y-%m")
 
-# ===========================
-# Load usage
-# ===========================
-with open(USAGE_FILE) as f:
-    usage = json.load(f)
-
-# ===========================
-# Load previous snapshot
-# ===========================
-if os.path.exists(PREV_FILE):
-    prev = json.load(open(PREV_FILE))
-else:
-    prev = {
-        "cpuSeconds": 0,
-        "memoryMBSeconds": 0,
-        "networkEgressMB": 0,
-        "volumeGBSeconds": 0
-    }
-
-# ===========================
-# Delta calculation
-# ===========================
-delta_cpu = usage["cpuSeconds"] - prev["cpuSeconds"]
-delta_mem_mb_sec = usage["memoryMBSeconds"] - prev["memoryMBSeconds"]
-delta_net_mb = usage["networkEgressMB"] - prev["networkEgressMB"]
-delta_vol_gb_sec = usage.get("volumeGBSeconds", 0) - prev.get("volumeGBSeconds", 0)
-
-delta_mem_gb_sec = delta_mem_mb_sec / 1024
-delta_net_gb = delta_net_mb / 1024
-
-# ===========================
-# Cost calculation
-# ===========================
-cpu_cost = delta_cpu * CPU_PRICE_PER_SEC
-mem_cost = delta_mem_gb_sec * MEMORY_PRICE_PER_GB_SEC
-vol_cost = delta_vol_gb_sec * VOLUME_PRICE_PER_GB_SEC
-net_cost = delta_net_gb * NETWORK_PRICE_PER_GB
-
-delta_total = cpu_cost + mem_cost + vol_cost + net_cost
-
-# ===========================
-# Monthly totals
-# ===========================
+# =========================
+# SAFE JSON HELPERS
+# =========================
 def safe_load_json(path, default):
     if not os.path.exists(path):
         return default
     try:
         with open(path, "r") as f:
             return json.load(f)
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, ValueError):
         return default
 
-monthly = safe_load_json(MONTHLY_FILE, {})
 
-if month_key not in monthly:
-    monthly[month_key] = 0.0
+def safe_write_json(path, data):
+    tmp = f"{path}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f)
+    os.replace(tmp, path)
 
-monthly[month_key] += delta_total
 
-# ===========================
-# Discord embed
-# ===========================
+# =========================
+# LOAD USAGE DATA
+# =========================
+usage = safe_load_json(USAGE_FILE, {})
+
+prev = safe_load_json(PREV_FILE, {
+    "cpuSeconds": 0,
+    "memoryMBSeconds": 0,
+    "networkEgressMB": 0,
+    "volumeGBSeconds": 0
+})
+
+state = safe_load_json(STATE_FILE, {
+    "message_id": None
+})
+
+
+# =========================
+# NORMALISE KEYS
+# =========================
+def get(d, key):
+    return d.get(key, 0)
+
+cpu_now = get(usage, "cpuSeconds")
+mem_now = get(usage, "memoryMBSeconds")
+net_now = get(usage, "networkEgressMB")
+vol_now = get(usage, "volumeGBSeconds")
+
+cpu_prev = get(prev, "cpuSeconds")
+mem_prev = get(prev, "memoryMBSeconds")
+net_prev = get(prev, "networkEgressMB")
+vol_prev = get(prev, "volumeGBSeconds")
+
+
+# =========================
+# DELTAS (HOURLY / DAILY)
+# =========================
+delta_cpu = max(cpu_now - cpu_prev, 0)
+delta_mem_mb = max(mem_now - mem_prev, 0)
+delta_net_mb = max(net_now - net_prev, 0)
+delta_vol_gb_sec = max(vol_now - vol_prev, 0)
+
+delta_mem_gb = delta_mem_mb / 1024
+delta_net_gb = delta_net_mb / 1024
+
+
+# =========================
+# COST CALCULATION
+# =========================
+cpu_cost = delta_cpu * CPU_PRICE_PER_SEC
+mem_cost = delta_mem_gb * MEMORY_PRICE_PER_GB_SEC
+vol_cost = delta_vol_gb_sec * VOLUME_PRICE_PER_GB_SEC
+net_cost = delta_net_gb * NETWORK_PRICE_PER_GB
+
+total_cost = cpu_cost + mem_cost + vol_cost + net_cost
+
+
+# =========================
+# DISCORD EMBED
+# =========================
+timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
 embed = {
-    "title": "📊 Railway Usage Report",
-    "color": 0x00C853,
+    "title": "📊 Railway Usage & Estimated Cost",
+    "color": 0x1abc9c,
     "fields": [
-        {"name": "💻 CPU", "value": f"${cpu_cost:.4f}", "inline": True},
-        {"name": "🧠 Memory", "value": f"${mem_cost:.4f}", "inline": True},
-        {"name": "📦 Volumes", "value": f"${vol_cost:.4f}", "inline": True},
-        {"name": "🌐 Network", "value": f"${net_cost:.4f}", "inline": True},
+        {"name": "💻 CPU", "value": f"{delta_cpu:.0f} sec\n`${cpu_cost:.4f}`", "inline": True},
+        {"name": "🧠 Memory", "value": f"{delta_mem_mb:.0f} MB-sec\n`${mem_cost:.4f}`", "inline": True},
+        {"name": "📦 Volumes", "value": f"{delta_vol_gb_sec:.2f} GB-sec\n`${vol_cost:.4f}`", "inline": True},
+        {"name": "🌐 Network", "value": f"{delta_net_gb:.3f} GB\n`${net_cost:.4f}`", "inline": True},
         {
-            "name": "🗓️ This Period",
-            "value": f"**${monthly[month_key]:.2f}**",
+            "name": "💰 Total Estimated Cost",
+            "value": f"**`${total_cost:.4f}`**",
             "inline": False
         }
     ],
-    "footer": {
-        "text": f"Updated {now.strftime('%Y-%m-%d %H:%M UTC')} • Incremental + monthly total"
-    }
+    "footer": {"text": f"Last update: {timestamp}"}
 }
 
-payload = {"embeds": [embed]}
 
-# ===========================
-# Send or edit message
-# ===========================
-if os.path.exists(MESSAGE_FILE):
-    msg_id = open(MESSAGE_FILE).read().strip()
-    url = f"{DISCORD_WEBHOOK}/messages/{msg_id}"
-    r = requests.patch(url, json=payload)
-else:
-    r = requests.post(DISCORD_WEBHOOK, json=payload)
-    msg_id = r.json()["id"]
-    open(MESSAGE_FILE, "w").write(msg_id)
+# =========================
+# SEND OR EDIT MESSAGE
+# =========================
+try:
+    if state["message_id"]:
+        url = f"{DISCORD_WEBHOOK}/messages/{state['message_id']}"
+        r = requests.patch(url, json={"embeds": [embed]})
+        if r.status_code == 404:
+            raise Exception("Message missing")
+    else:
+        r = requests.post(DISCORD_WEBHOOK, json={"embeds": [embed]})
+        r.raise_for_status()
+        state["message_id"] = r.json()["id"]
 
-r.raise_for_status()
+except Exception:
+    r = requests.post(DISCORD_WEBHOOK, json={"embeds": [embed]})
+    r.raise_for_status()
+    state["message_id"] = r.json()["id"]
 
-# ===========================
-# Save state
-# ===========================
-json.dump(usage, open(PREV_FILE, "w"))
-json.dump(monthly, open(MONTHLY_FILE, "w"))
 
-print("✅ Usage updated successfully")
+# =========================
+# SAVE STATE
+# =========================
+safe_write_json(PREV_FILE, {
+    "cpuSeconds": cpu_now,
+    "memoryMBSeconds": mem_now,
+    "networkEgressMB": net_now,
+    "volumeGBSeconds": vol_now
+})
+
+safe_write_json(STATE_FILE, state)
+
+print("✅ Usage report updated successfully")
