@@ -9,11 +9,16 @@ from datetime import datetime, timezone
 DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
 PREV_FILE = os.environ.get("PREV_FILE", "prev_usage.json")
 
+# Safety check
+if not DISCORD_WEBHOOK:
+    print("Error: DISCORD_WEBHOOK environment variable not set!")
+    exit(1)
+
 # Resource allocation (replace with your project’s actual values)
 CPU_VCPUS = float(os.environ.get("CPU_VCPUS", 0.5))      # e.g., 0.5 vCPU
 MEMORY_GB = float(os.environ.get("MEMORY_GB", 0.128))    # e.g., 128 MB = 0.128 GB
 VOLUME_GB = float(os.environ.get("VOLUME_GB", 1))        # persistent volume size
-NETWORK_GB = float(os.environ.get("NETWORK_GB", 0))      # egress since last run, optional
+NETWORK_GB = float(os.environ.get("NETWORK_GB", 0))      # egress since last run
 
 # Pricing (from Railway)
 CPU_PRICE_PER_SEC = 0.00000772
@@ -81,9 +86,9 @@ embed = {
 try:
     res = requests.post(DISCORD_WEBHOOK, json={"embeds": [embed]})
     res.raise_for_status()
-    print("Embed sent to Discord successfully!")
+    print("✅ Embed sent to Discord successfully!")
 except requests.exceptions.RequestException as e:
-    print("Failed to send Discord embed:", e)
+    print("❌ Failed to send Discord embed:", e)
     exit(1)
 
 # ---------------------------
