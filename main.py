@@ -47,7 +47,7 @@ else:
 delta_cpu = usage["cpuSeconds"] - prev["cpuSeconds"]
 delta_mem_mb_sec = usage["memoryMBSeconds"] - prev["memoryMBSeconds"]
 delta_net_mb = usage["networkEgressMB"] - prev["networkEgressMB"]
-delta_vol_gb_sec = usage["volumeGBSeconds"] - prev["volumeGBSeconds"]
+delta_vol_gb_sec = usage.get("volumeGBSeconds", 0) - prev.get("volumeGBSeconds", 0)
 
 delta_mem_gb_sec = delta_mem_mb_sec / 1024
 delta_net_gb = delta_net_mb / 1024
