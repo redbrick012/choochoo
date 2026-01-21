@@ -3,8 +3,8 @@ name = "railway-usage-bot"
 
 [service]
 name = "discord-bot"
-startCommand = "python usage_to_discord.py"
+startCommand = "python main.py"
 
 [cron.daily]
 schedule = "0 9 * * *"
-command = "python usage_to_discord.py"
+command = "python main.py"
