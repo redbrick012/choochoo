@@ -29,17 +29,19 @@ except FileNotFoundError:
 # ---------------------------
 # Load previous usage snapshot
 # ---------------------------
-if os.path.exists(PREV_FILE):
-    with open(PREV_FILE, "r") as f:
-        prev_usage = json.load(f)
-else:
-    # If no previous file, assume all usage is new
-    prev_usage = {
+def empty_usage():
+    return {
         "cpuSeconds": 0,
         "memoryMBSeconds": 0,
         "networkEgressMB": 0,
         "volumeGBSeconds": 0
     }
+
+try:
+    with open(PREV_FILE, "r") as f:
+        prev_usage = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    prev_usage = empty_usage()
 
 # ---------------------------
 # Calculate deltas (daily usage)
