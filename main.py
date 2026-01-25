@@ -1,3 +1,5 @@
+print("🚀 Script started at", datetime.now(timezone.utc).isoformat())
+
 import os
 import json
 import requests
