@@ -8,8 +8,7 @@ import random
 # CONFIG
 # ---------------------------
 DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
-PREV_FILE = os.environ.get("PREV_FILE", "prev_usage.json")
-
+PREV_FILE = "/app/data/prev_usage.json"
 if not DISCORD_WEBHOOK:
     print("❌ DISCORD_WEBHOOK not set!")
     exit(1)
